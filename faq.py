@@ -88,3 +88,9 @@ def get_admin_arr():
         admin_id_arr = json.load(file)
         
     return admin_id_arr
+
+def get_bot_messages():
+    with open("./academy/bot_messages.json", "r") as file:
+        bot_messages = json.load(file)
+        
+    return bot_messages
