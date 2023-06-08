@@ -898,10 +898,7 @@ def apps_vocabulary(update: Update, context: CallbackContext):
     
     return "VOCABULARY_SECTION"
 
-def faq_ver2(update: Update, context: CallbackContext):
-    query = update.callback_query
-    query.answer()
-    chat_id = query.message.chat_id
+def faq_ver2(update: Update, context: CallbackContext, *args, **kwargs):
     
     question_answers = get_faq()
     
@@ -911,10 +908,26 @@ def faq_ver2(update: Update, context: CallbackContext):
     for i, question in enumerate(question_answers):
         questions_keyboard.insert(i, [InlineKeyboardButton(text = question['question'], callback_data=f"QUESTION | {i}")])
 
-    if str(chat_id) in get_admin_arr():
-        questions_keyboard.insert(len(questions_keyboard)-1, [InlineKeyboardButton(text = "➕ Добавить вопрос", callback_data="ADD_QUESTION")])
+    
+    if "type" in kwargs.keys() and kwargs['type'] == "send":
+        
+        chat_id = kwargs['chat_id']
+        
+        if str(chat_id) in get_admin_arr():
+            questions_keyboard.insert(len(questions_keyboard)-1, [InlineKeyboardButton(text = "➕ Добавить вопрос", callback_data="ADD_QUESTION")])
 
-    query.edit_message_text(text = "Часто задаваемые вопросы:", reply_markup=InlineKeyboardMarkup(questions_keyboard))
+        context.bot.send_message(chat_id, text = "Часто задаваемые вопросы:", reply_markup=InlineKeyboardMarkup(questions_keyboard))
+        
+    else:
+        query = update.callback_query
+        query.answer()
+        
+        chat_id = query.message.chat_id
+        
+        if str(chat_id) in get_admin_arr():
+            questions_keyboard.insert(len(questions_keyboard)-1, [InlineKeyboardButton(text = "➕ Добавить вопрос", callback_data="ADD_QUESTION")])
+
+        query.edit_message_text(text = "Часто задаваемые вопросы:", reply_markup=InlineKeyboardMarkup(questions_keyboard))
 
     return "FAQ_SECTION"
 
@@ -939,7 +952,8 @@ def faq_ver2_display_question(update: Update, context: CallbackContext):
     ]
     
     if str(chat_id) in get_admin_arr():
-        keyboard.insert(0, [InlineKeyboardButton(text = "❌ Удалить вопрос", callback_data=f"DELETE_QUESTION | {question_number}")])
+        keyboard.insert(0, [InlineKeyboardButton(text = "❌ Удалить вопрос", callback_data=f"DELETE_QUESTION | {question_number}")]),
+        keyboard.insert(0, [InlineKeyboardButton(text = "✏️ Изменить вопрос", callback_data=f"EDIT_QUESTION | {question_number}"), InlineKeyboardButton(text = "✏️ Изменить ответ", callback_data=f"EDIT_ANSWER | {question_number}")])
 
     
     query.edit_message_text(text = message, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode=ParseMode.HTML)
@@ -954,7 +968,65 @@ def faq_ver2_delete_question(update: Update, context: CallbackContext):
     return faq_ver2(update, context)
     
     # return "ADD_FAQ_QUESTION"
+    
+#Edit question
+    
+def faq_ver2_edit_question(update: Update, context: CallbackContext):
+    index = update.callback_query.data.split(" | ")[1]
+    
+    query = update.callback_query
+    query.edit_message_reply_markup(reply_markup=None)
+    
+    context.user_data['edit_question_index'] = index
+    
+    context.bot.send_message(query.message.chat_id, text = "Введите вопрос")
+    
+    return "EDIT_FAQ_QUESTION"
 
+def faq_ver2_edit_question_get_question(update: Update, context: CallbackContext):
+    question = update.message.text
+    index = int(context.user_data['edit_question_index'])
+    
+    edit_question(index, "question", question)
+    
+    keyboard = [
+        [InlineKeyboardButton(text="Вернуться в FAQ", callback_data="RETURN_FAQ")],
+        [InlineKeyboardButton(text="Изменить ответ", callback_data=f"EDIT_ANSWER | {index}")],
+    ]
+    
+    context.bot.send_message(update.message.chat_id, text = "Вопрос изменен ✅", reply_markup = InlineKeyboardMarkup(keyboard))
+    
+    return "EDIT_FAQ_QUESTION"
+    
+#Edit answer
+def faq_ver2_edit_answer(update: Update, context: CallbackContext):
+    index = update.callback_query.data.split(" | ")[1]
+    
+    query = update.callback_query
+    query.edit_message_reply_markup(reply_markup=None)
+    
+    context.user_data['edit_question_index'] = index
+    
+    context.bot.send_message(query.message.chat_id, text = "Введите ответ. Имейте ввиду, что форматирование сообщения сохранится")
+    
+    return "EDIT_FAQ_ANSWER"
+
+def faq_ver2_edit_answer_get_question(update: Update, context: CallbackContext):
+    question = update.message.text_html_urled
+    index = int(context.user_data['edit_question_index'])
+    
+    edit_question(index, "answer", question)
+    
+    keyboard = [
+        [InlineKeyboardButton(text="Вернуться в FAQ", callback_data="RETURN_FAQ")],
+        # [InlineKeyboardButton(text="Изменить ответ", callback_data=f"EDIT_ANSWER | {index}")],
+    ]
+    
+    context.bot.send_message(update.message.chat_id, text = "Ответ изменен ✅", reply_markup = InlineKeyboardMarkup(keyboard))
+    
+    return "EDIT_FAQ_ANSWER"
+
+#Add question
 def faq_ver2_add_question(update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()
@@ -979,7 +1051,7 @@ def faq_ver2_get_answer(update: Update, context: CallbackContext):
     
     add_question(context.user_data['faq_question'], context.user_data['faq_answer'])
 
-    return start(update, context)
+    return faq_ver2(update, context, type="send", chat_id = update.message.chat_id)
     
 
 def faq(update: Update, context: CallbackContext):
@@ -1098,16 +1170,28 @@ def main() -> None:
                 CallbackQueryHandler(faq_ver2_display_question, pattern='^' + 'QUESTION'),
                 CallbackQueryHandler(faq_ver2_add_question, pattern='^' + 'ADD_QUESTION'),
                 CallbackQueryHandler(faq_ver2_delete_question, pattern='^' + 'DELETE_QUESTION'),
+                CallbackQueryHandler(faq_ver2_edit_question, pattern='^' + 'EDIT_QUESTION'),
+                CallbackQueryHandler(faq_ver2_edit_answer, pattern='^' + 'EDIT_ANSWER'),
                 CallbackQueryHandler(menu_generate, pattern='^' + 'BACK_MAIN'),
                 CallbackQueryHandler(faq_ver2, pattern='^' + 'BACK')
                 
                 
             ],
             "ADD_FAQ_QUESTION": [
-                MessageHandler(Filters.text, faq_ver2_get_question)
+                MessageHandler(Filters.text, faq_ver2_get_question),
             ],
             "ADD_FAQ_ANSWER": [
                 MessageHandler(Filters.text, faq_ver2_get_answer)
+            ],
+            "EDIT_FAQ_QUESTION": [
+                MessageHandler(Filters.text, faq_ver2_edit_question_get_question),
+                CallbackQueryHandler(faq_ver2_edit_answer, pattern='^' + 'EDIT_ANSWER'),
+                CallbackQueryHandler(faq_ver2, pattern = "^"+"RETURN_FAQ"),
+            ],
+            "EDIT_FAQ_ANSWER": [
+                MessageHandler(Filters.text, faq_ver2_edit_answer_get_question),
+                CallbackQueryHandler(faq_ver2, pattern = "^"+"RETURN_FAQ"),
+                
             ],
             "SPEAKING_SECTION": [
                 CallbackQueryHandler(check_list, pattern='^' + 'CHECK_LIST'),

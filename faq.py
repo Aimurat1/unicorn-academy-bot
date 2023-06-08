@@ -46,11 +46,14 @@ import json
 # """},
 # ]
 
+faq_file = "question.json"
+admin_arr_file = "admin_id.json"
+bot_messages_file = "bot_messages.json"
 
 def get_faq():
     question_answers = []
     
-    with open("./academy/question.json", "r") as file:
+    with open(faq_file, "r") as file:
         question_answers = json.load(file)
 
     return question_answers
@@ -58,18 +61,18 @@ def get_faq():
 def add_question(question, answer):
     question_answers = []
     
-    with open("./academy/question.json", "r") as file:
+    with open(faq_file, "r") as file:
         question_answers = json.load(file)
         
     question_answers.append({'question': question, "answer": answer})
     
-    with open("./academy/question.json", "w") as file:
+    with open(faq_file, "w") as file:
         json.dump(question_answers, file)
         
 def delete_question(question_index):
     question_answers = []
     
-    with open("./academy/question.json", "r") as file:
+    with open(faq_file, "r") as file:
         question_answers = json.load(file)
         
     question_index = int(question_index)
@@ -77,20 +80,30 @@ def delete_question(question_index):
     question_answers.pop(question_index)
     
     
-    with open("./academy/question.json", "w") as file:
+    with open(faq_file, "w") as file:
         json.dump(question_answers, file)
     
+def edit_question(index, type, question_text):
+    question_answers = []
+    
+    with open(faq_file, "r") as file:
+        question_answers = json.load(file)
+        
+    question_answers[index][str(type)] = question_text
+    
+    with open(faq_file, "w") as file:
+        json.dump(question_answers, file)
 
 def get_admin_arr():
     admin_id_arr = []
     
-    with open("./academy/admin_id.json", "r") as file:
+    with open(admin_arr_file, "r") as file:
         admin_id_arr = json.load(file)
         
     return admin_id_arr
 
 def get_bot_messages():
-    with open("./academy/bot_messages.json", "r") as file:
+    with open(bot_messages_file, "r") as file:
         bot_messages = json.load(file)
         
     return bot_messages
